@@ -42,9 +42,10 @@ export function getFormFieldData(e, formSchema) {
 
   if (formSchema) {
     errors = validateFormFields(formSchema, data);
+    return [data, errors];
   }
 
-  return [data, errors];
+  return data;
 }
 
 // Each form would need a schema object like this for validation
