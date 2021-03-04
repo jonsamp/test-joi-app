@@ -10,15 +10,16 @@ function validateFormFields(schema, fieldObject) {
     return validationResult.error.details.reduce((acc, error) => {
       return {
         ...acc,
-        [error.context.key]: error.message,
+        // default error message is `\"Access token\" ...`, so replacing the quotation marks.
+        [error.context.key]: error.message.replace(/\"/g, ''),
       };
     }, {});
   }
 }
 
 // Get form field data from a native HTML form
-export function getFormFieldData(e) {
-  return Object.values(e.target.elements).reduce((acc, field) => {
+export function getFormFieldData(e, formSchema) {
+  const data = Object.values(e.target.elements).reduce((acc, field) => {
     if (field.id) {
       if (field.type === 'radio') {
         if (!acc[field.name]) {
@@ -29,17 +30,27 @@ export function getFormFieldData(e) {
           }
         }
       } else {
-        acc[field.id] = field.hasOwnProperty('checked') ? field.checked : field.value;
+        acc[field.id] = field.hasOwnProperty('checked')
+          ? field.checked
+          : field.value;
       }
     }
     return acc;
   }, {});
+
+  let errors = {};
+
+  if (formSchema) {
+    errors = validateFormFields(formSchema, data);
+  }
+
+  return [data, errors];
 }
 
 // Each form would need a schema object like this for validation
 const formSchema = Joi.object({
-  username: Joi.string().min(3).max(30).alphanum().required(),
-  accessToken: Joi.number().required(),
+  username: Joi.string().min(3).max(30).alphanum().required().label('Username'),
+  accessToken: Joi.number().required().label('Access token'),
 });
 
 export default function Home() {
@@ -48,14 +59,13 @@ export default function Home() {
   function onSubmit(e) {
     e.preventDefault();
 
-    const { username, accessToken } = getFormFieldData(e);
+    setErrors({});
 
-    // Provide a schema, and the fields the user provided
-    const validationErrors = validateFormFields(formSchema, { username, accessToken });
+    const [{ username, accessToken }, errors] = getFormFieldData(e, formSchema);
 
     // Set errors
-    if (validationErrors) {
-      return setErrors(validationErrors);
+    if (errors) {
+      return setErrors(errors);
     }
 
     // Keep going
@@ -64,12 +74,21 @@ export default function Home() {
 
   return (
     <form onSubmit={onSubmit}>
-      <input id="username" placeholder="username" />
-      {/* Access form errors by name fo the field */}
-      <p>Username error: {errors.username}</p>
-      <input id="accessToken" placeholder="access token" />
-      <p>accessToken error: {errors.accessToken}</p>
-      <button type="submit">Submit</button>
+      <label id='username'>Username</label>
+      <input
+        id='username'
+        placeholder='username'
+        style={{ borderColor: errors.username ? 'red' : null }}
+      />
+      <p style={{ color: 'red' }}>{errors.username}</p>
+      <label id='accessToken'>Access token</label>
+      <input
+        id='accessToken'
+        placeholder='access token'
+        style={{ borderColor: errors.accessToken ? 'red' : null }}
+      />
+      <p style={{ color: 'red' }}>{errors.accessToken}</p>
+      <button type='submit'>Submit</button>
     </form>
   );
 }
